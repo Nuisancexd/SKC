@@ -1,2 +1,6 @@
-# SKC
-A library for Secret Key Cryptography symmetric encryption that uses a single key for encryption and decryption for privacy and secrecy of information.
+About project
+
+Symmetric encryption of confidential textual information. A unique password key is used, length up to 64 characters.
+
+    --   a unique key is used.
+    --   encrypts a text document with a key and decrypts a text document with the same key.
