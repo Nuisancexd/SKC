@@ -1,5 +1,4 @@
 #include "readFile.h"
-#include "encrypt.h"
 
 static void proc_bin_representation(int buffer_size, uint8_t* buffer, char* &dc)
 {
@@ -35,6 +34,7 @@ static void proc_bin_representation(int buffer_size, uint8_t* buffer, char* &dc)
 	}
 }
 
+
 void read_dencrypt_file(const char* in, const char* out, const char* key)
 {
 	FILE* ptr;
@@ -48,6 +48,15 @@ void read_dencrypt_file(const char* in, const char* out, const char* key)
 		return;
 	}
 
+	Stack* stack_key = new_stack(strlen(key), STRING_TYPE);
+	HashContext* ghc = new HashContext();	
+
+	for (int i = 0; i < strlen(key); ++i)
+	{
+		push_stack(stack_key, string(key[i]));
+		hash_key(stack_key, ghc, i);
+		hash_xor_key(stack_key, ghc, i);
+	}	
 	
 	uint8_t* buffer = new uint8_t[1025];
 	while(fgets((char*)buffer, 1025, ptr))
@@ -56,35 +65,25 @@ void read_dencrypt_file(const char* in, const char* out, const char* key)
 		
 		proc_bin_representation(strlen((char*)buffer), buffer, smbls);
 
-		Stack* stack = new_stack(strlen((char*)buffer), STRING_TYPE);		
+		Stack* stack = new_stack(strlen((char*)buffer) / 8, STRING_TYPE);		
 
 		for (size_t i = 0; i < strlen((char*)buffer) / 8; ++i)
 		{
 			push_stack(stack, string(smbls[i]));
+			merge_state_key_encr(stack, stack_key, ghc, i);
+			hash_state_of_encr(stack, ghc, i);		
 		}
 		delete[] smbls;
 		std::fill(&buffer[0], &buffer[1025], 0);
-
-		Stack* stack2 = new_stack(strlen(key), STRING_TYPE);
-
-		for (int i = 0; i < strlen(key); ++i)
-		{
-			push_stack(stack2, string(key[i]));
-		}
-
-		
-		hash_key(stack2);
-		Hash_xor_key(stack2);
-		merge_state_key(stack, stack2);
-		dehash_state(stack);
-
+							
 
 		fwrite(get_arr(stack), size_stack(stack), 1, ptr2);
 
-		free_stack(stack);
-		free_stack(stack2);
+		free_stack(stack);			
 
 	}
+
+	free_stack(stack_key);
 
 
 	fclose(ptr);
@@ -92,6 +91,7 @@ void read_dencrypt_file(const char* in, const char* out, const char* key)
 
 	std::cout << "Completly encrypted.";
 }
+
 
 void read_encrypt_file(const char* in, const char* out, const char* key)
 {	
@@ -106,6 +106,16 @@ void read_encrypt_file(const char* in, const char* out, const char* key)
 		return;
 	}
 
+	Stack* stack_key = new_stack(strlen(key), STRING_TYPE);
+	HashContext* ghc = new HashContext();
+
+	for (int i = 0; i < strlen(key); ++i)
+	{
+		push_stack(stack_key, string(key[i]));
+		hash_key(stack_key, ghc, i);
+		hash_xor_key(stack_key, ghc, i);
+	}
+	
 	
 	uint8_t* buffer = new uint8_t[1025];
 	while (fgets((char*)buffer, 1025, ptr1))	
@@ -116,39 +126,27 @@ void read_encrypt_file(const char* in, const char* out, const char* key)
 		for (size_t i = 0; i < strlen((char*)buffer); ++i)
 		{
 			push_stack(stack, string(buffer[i]));
+			hash_state_of_cr(stack, ghc, i);
+			merge_state_key_cr(stack, stack_key, ghc, i);			
 		}
-		std::fill(&buffer[0], &buffer[1025], 0);
-	
-		Stack* stack2 = new_stack(strlen(key), STRING_TYPE);
-
-		for (int i = 0; i < strlen(key); ++i)
-		{
-			push_stack(stack2, string(key[i]));
-		}
-
-
-		hash_state(stack);
-		hash_key(stack2);
-		Hash_xor_key(stack2);
-		merge_state_key(stack, stack2);
+		std::fill(&buffer[0], &buffer[1025], 0);		
 
 		for (size_t i = 0; i < size_stack(stack); ++i)
 		{
-			Stack* stack_ = new_stack(8, INTEGER_TYPE);
+			Stack* stack_bit = new_stack(8, INTEGER_TYPE);
 
 			uint8_t smb = get_stack(stack, i).string;
-			dec_to_bin(stack_, smb);	
+			dec_to_bin(stack_bit, smb);	
 
 			for (size_t i = 0; i < 8; ++i)
 			{
-				fprintf(ptr2, "%i", get_stack(stack_, i).integer);
+				fprintf(ptr2, "%i", get_stack(stack_bit, i).integer);
 			}
-			free_stack(stack_);
+			free_stack(stack_bit);
 		}
-		free_stack(stack);
-		free_stack(stack2);
-
+		free_stack(stack);		
 	}
+	free_stack(stack_key);
 
 
 	fclose(ptr1);
@@ -246,13 +244,13 @@ void use_save_file(const char* key)
 
 	if (what_ == true)
 	{
-		read_dencrypt_file(buffer_in, buffer_out, key);
+		read_dencrypt_file(buffer_in, buffer_out, key);	
 	}
 	else
 	{
-		read_encrypt_file(buffer_in, buffer_out, key);
+		read_encrypt_file(buffer_in, buffer_out, key);		
 	}
-
 	std::cout << "Success" << std::endl;
 	fclose(ptr);
 }
+
