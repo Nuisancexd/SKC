@@ -2,8 +2,9 @@
 
 #include "stack.h"
 
+#include "encrypt.h"
 
-extern void read_dencrypt_file(const char* in, const char* out, const char* key);
+extern void read_dencrypt_file(const char* in, const char* out, const char* key);	
 
 extern void read_encrypt_file(const char* in, const char* out, const char* key);
 
